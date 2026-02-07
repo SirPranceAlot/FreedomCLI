@@ -92,8 +92,8 @@ A powerful CLI for chatting with AI models through OpenRouter with streaming res
 - This prevents accidental exits while allowing quick termination when needed
 
 </details>
-
-## 🛡️ Command Execution Workflow
+<details>
+<summary><strong>🛡️ Command Execution Workflow </strong></summary>
 
 OrChat now supports secure, agentic shell access so the AI can help you explore your project without ever leaving the terminal.
 
@@ -104,6 +104,7 @@ OrChat now supports secure, agentic shell access so the AI can help you explore 
 5. **Automatic Feedback**: Results are added back to the conversation so the AI can reason over the output immediately.
 
 This flow keeps you in control while still giving the model the ability to `dir`, `find`, `grep`, or run tests when you approve it.
+</details>
 
 <a id="installation"></a>
 ## 🚀 Installation
