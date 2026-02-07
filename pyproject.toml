@@ -22,12 +22,26 @@ dependencies = [
     "requests",
     "tiktoken",
     "rich",
-    "python-dotenv", 
+    "python-dotenv",
     "colorama",
     "packaging",
     "pyfzf",
     "cryptography",
     "prompt_toolkit",
+    "beautifulsoup4",
+    "html2text",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "isort",
+    "build",
+    "twine",
+    "pre-commit",
 ]
 
 [project.scripts]
