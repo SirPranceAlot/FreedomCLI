@@ -2,7 +2,7 @@
 
 # 🤖 OrChat
 
-<img src="branding\OrChat-Interface.png" width="800" alt="OrChat Interface"/>
+<img src="branding/OrChat-Interface.png" width="800" alt="OrChat Interface"/>
 
 [![PyPI version](https://img.shields.io/pypi/v/orchat?color=86efac&style=for-the-badge&logo=pypi&logoColor=black)](https://badge.fury.io/py/orchat)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge&logo=opensource&logoColor=white)](https://opensource.org/licenses/MIT)
@@ -26,14 +26,14 @@ A powerful CLI for chatting with AI models through OpenRouter with streaming res
 - **Universal Model Access**: Connect to any AI model available on OpenRouter with dynamic model retrieval
 - **Interactive Chat**: Enjoy a smooth conversation experience with real-time streaming responses
 - **Rich Markdown Rendering**: View formatted text, code blocks, tables and more directly in your terminal
-- **Performance Analytics**: Track token usage, response times, and total cost for efficiency monitoring (now with accurate API-based token counting)
-- **Command Auto-completion**: Enhanced user experience with intelligent command suggestions and prompt history navigation
-- **Prompt History Navigation**: Use ↑/↓ arrow keys to navigate through previous prompts and Ctrl+R for history search
+- **Agentic Shell Access**: The assistant can request commands via `[EXECUTE: ...]`, with human approval and contextual output injection
+- **Security Gating**: Every command request shows a color-coded risk panel (safe/warning/critical) before you choose to run it
+- **Performance Analytics**: Track token usage, response times, and total cost with accurate API-reported counts
+- **Command Auto-completion**: Intelligent command suggestions, prompt history navigation, and inline auto-suggest while typing
 - **Pricing Display**: Real-time pricing information displayed during active chat sessions
 - **Auto-Update System**: Automatic update checking at startup with pip integration
 - **Multi-line Input Support**: Compose multi-paragraph messages with `Esc+Enter` and visual feedback
 - **Conversation Management**: Save, list, and resume conversations with AI-generated topic summaries
-- **Smart Summarization**: Automatically generates meaningful names for saved sessions (e.g., "python_coding", "travel_advice")
 - **Auto-Summarization**: Intelligently summarizes old messages instead of trimming them to preserve context within token limits
 - **Session Persistence**: Resume conversations exactly where you left off with full context
 - **Web Scraping**: Fetch and analyze web content directly in your conversations with automatic URL detection
@@ -44,9 +44,9 @@ A powerful CLI for chatting with AI models through OpenRouter with streaming res
 <summary><strong>📎 File & Media Support</strong></summary>
 
 - **Smart File Picker**: Attach files anywhere in your message using `@` (e.g., `analyze @myfile.py`)
-- **Interactive File Browser**: Browse files with icons, sizes, and directory navigation in a popup interface
+- **Attachment Preview**: See filename, type, and size before injecting content into the conversation
 - **Multimodal Support**: Share images and various file types with compatible AI models
-- **Enhanced File Processing**: Improved file attachment with better error handling and path support
+- **Enhanced File Processing**: Better error handling, security validation (10 MB limit), and path sanitation
 - **Web Content Scraping**: Fetch and inject web content from URLs with automatic detection and clean markdown conversion
 
 </details>
@@ -55,9 +55,9 @@ A powerful CLI for chatting with AI models through OpenRouter with streaming res
 <summary><strong>🧠 Advanced Features</strong></summary>
 
 - **Smart Thinking Mode**: See the AI's reasoning process with compatible models
-- **Multiple Export Formats**: Save conversations as Markdown, HTML, JSON, TXT, or PDF
-- **Smart Context Management**: Automatically manages conversation history to stay within token limits
-- **Conversation Management**: Save, list, and resume conversations with AI-generated summaries
+- **Conversation Export**: Save conversations as Markdown, HTML, or JSON (the supported formats in-app)
+- **Smart Context Management**: Automatically summarizes or trims history to stay within token limits
+- **AI Session Summaries**: Generates short, meaningful names for saved sessions
 - **Customizable Themes**: Choose from different visual themes for your terminal
 
 </details>
@@ -70,7 +70,7 @@ A powerful CLI for chatting with AI models through OpenRouter with streaming res
 - **History Search**: Use Ctrl+R to search through your prompt history with keywords
 - **Automatic Command Completion**: Start typing "/" and command suggestions appear instantly - no Tab key needed!
 - **Auto-Suggest from History**: Previous commands and prompts appear as grey suggestions as you type
-- **Intelligent File Picker**: Use `@` anywhere in your message for file selection with auto-completion and browser popup
+- **Smart File Picker**: Use `@` anywhere in your message for inline file selection with auto-completion and previews
 - **Double Ctrl+C Exit**: Press Ctrl+C twice within 2 seconds to gracefully exit the chat session
 
 **💡 How Auto-Completion Works:**
@@ -82,7 +82,7 @@ A powerful CLI for chatting with AI models through OpenRouter with streaming res
 
 **💡 How File Picker Works:**
 - Type `@` anywhere in your message to open the file picker
-- Choose files interactively (with icons for file types)
+- Choose files interactively with inline metadata previews
 - Insert filenames naturally into your prompt, e.g., `examine @test.py and check for errors`
 - File picker works anywhere in your message, not just at the beginning
 
@@ -93,9 +93,22 @@ A powerful CLI for chatting with AI models through OpenRouter with streaming res
 
 </details>
 
+## 🛡️ Command Execution Workflow
+
+OrChat now supports secure, agentic shell access so the AI can help you explore your project without ever leaving the terminal.
+
+1. **Structured Requests**: The assistant emits `[EXECUTE: your_command]` inside its response when it needs shell access.
+2. **Risk Panel**: OrChat classifies the command (Safe 🟢, Warning 🟠, Critical 🔴) based on keywords such as `rm`, `pip install`, etc., and shows the OS context plus the exact command.
+3. **Explicit Approval**: You must confirm with `y/n`. Declining keeps the conversation going; the AI is notified that access was denied.
+4. **Sandboxed Execution**: Approved commands run through your native shell with a 30-second timeout, capturing both stdout and stderr (truncated after 5 000 chars to protect context length).
+5. **Automatic Feedback**: Results are added back to the conversation so the AI can reason over the output immediately.
+
+This flow keeps you in control while still giving the model the ability to `dir`, `find`, `grep`, or run tests when you approve it.
+
 <a id="installation"></a>
 ## 🚀 Installation
 
+<details>
 <summary><strong>📦 Installation Methods</strong></summary>
 
 ### From PyPI (Recommended)
@@ -112,20 +125,21 @@ orchat
 
 ```bash
 git clone https://github.com/oop7/OrChat.git
-pip install -r requirements.txt
-python main.py
-```
+cd OrChat
+pip install -e .
 
-</details>
+# Run directly (development)
+python -m orchat.main
+```
 
 </details>
 
 <details>
 <summary><strong>📋 Prerequisites</strong></summary>
 
-- Python 3.7 or higher
+- Python 3.9 or higher
 - An OpenRouter API key (get one at [OpenRouter.ai](https://openrouter.ai))
-- Required packages: in `requirements.txt`
+- Optional: [fzf](https://github.com/junegunn/fzf) + `pyfzf` for fuzzy model selection
 
 </details>
 
@@ -134,13 +148,13 @@ python main.py
 
 1. Install OrChat using one of the methods above
 2. Run the setup wizard
-   - if you follow from source PyPI:
+   - After a PyPI install:
      ```bash
      orchat --setup
      ```
-   - if you follow from source method:
+   - From a cloned repository:
      ```bash
-     python main.py --setup
+     python -m orchat.main --setup
      ```
 3. Enter your OpenRouter API key when prompted
 4. Select your preferred AI model and configure settings
@@ -176,7 +190,7 @@ python main.py
 
 OrChat can be configured in multiple ways:
 
-1. **Setup Wizard**: Run `python main.py --setup` for interactive configuration
+1. **Setup Wizard**: Run `orchat --setup` (or `python -m orchat.main --setup` inside the repo) for interactive configuration
 2. **Config File**: Edit the `config.ini` file in the application directory
 3. **Environment Variables**: Create a `.env` file with your configuration
 4. **System Environment Variables**: Set environment variables directly in your system (recommended for security)
@@ -232,7 +246,7 @@ THINKING_MODE = False
 | `/new`                    | Start a new conversation                              |
 | `/clear`                  | Clear conversation history                            |
 | `/cls` or `/clear-screen` | Clear the terminal screen                             |
-| `/save [format]`          | Save conversation (formats: md, html, json, txt, pdf) |
+| `/save [format]`          | Save conversation (formats: md, html, json)            |
 | `/chat list`              | List saved conversations with human-readable summaries |
 | `/chat save`              | Save current conversation with auto-generated summary  |
 | `/chat resume <session>`  | Resume a saved conversation by name or ID              |
@@ -293,30 +307,30 @@ Attach files naturally in your messages using the smart file picker:
 analyze @path/to/your/file.ext for issues
 examine @script.py and explain its logic
 ```
-- Use `@` anywhere in your message to open the file picker popup
+- Use `@` anywhere in your message to attach a file with preview and validation
 
 </details>
 
 <details>
 <summary><strong>✨ Enhanced Features</strong></summary>
 
-- **Intelligent File Picker**: Auto-completion, icons, file sizes, and directory navigation
-- **Quoted Path Support**: Handles file paths with spaces using quotes
-- **Better Error Handling**: Improved error messages and usage examples
-- **File Preview**: Shows file metadata and preview before processing
-- **Security Validation**: Built-in file size and type validation (10MB limit)
+- **Inline Auto-Completion**: Type `@` and continue typing to filter files; relative paths expand automatically
+- **Metadata Preview**: Panel shows filename, extension, and size before injection
+- **Improved Error Handling**: Clear messages for missing files, oversized attachments, or unsupported types
+- **Security Validation**: Built-in file size (10 MB) and type checks with sanitized filenames
+- **Web Content Bridge**: URLs inside your message can be scraped and attached alongside local files
 
 </details>
 
 <details>
 <summary><strong>📋 Supported File Types</strong></summary>
 
-- **Images**: JPG, PNG, GIF, WEBP, BMP (displayed visually with multimodal models)
-- **Code Files**: Python, JavaScript, Java, C++, TypeScript, Swift, etc. (with syntax highlighting)
-- **Text Documents**: TXT, MD, CSV (full content displayed)
-- **Data Files**: JSON, XML (displayed with formatting)
-- **Web Files**: HTML, CSS (formatted display)
-- **Archives**: ZIP, TAR, GZ, RAR (basic metadata support)
+- **Images**: JPG, PNG, GIF, WEBP, BMP (rendered with multimodal-friendly data URLs)
+- **Code Files**: Python, JavaScript, Java, C++, TypeScript, Swift, etc. (wrapped in fenced code blocks)
+- **Text Documents**: TXT, MD, CSV (raw text included)
+- **Data Files**: JSON, XML (fenced blocks for readability)
+- **Web Files**: HTML, CSS (inlined for context)
+- **PDFs**: Metadata only (the assistant is told a PDF was provided)
 
 </details>
 
@@ -446,10 +460,11 @@ Check for updates with the `/update` command to see if a newer version is availa
 
 - **API Key Issues**: Ensure your OpenRouter API key is correctly set in config.ini, .env file, or system environment variables. OrChat will prompt for re-entry if an incorrect key is detected
 - **Insufficient Account Credit**: If you receive a 402 error, check your OpenRouter account balance and add funds as needed
-- **File Path Problems**: When using `/attach` or `/upload`, use quotes for paths with spaces and ensure correct path format for your OS
+- **Rate Limits (429)**: Too many rapid requests will trigger a yellow "Rate Limit" panel—wait a few seconds or switch to another model with `/model`
+- **File Path Problems**: When attaching files via `@`, use quotes for paths with spaces and ensure the path is valid for your OS
 - **Model Compatibility**: Some features like thinking mode only work with specific models
 - **Conversation Management**: Use `/chat list` to see saved conversations, `/chat save` to save current session, and `/chat resume <name>` to continue previous conversations
-- **Command Usage**: Remember that `/upload` and `/attach` can be used anywhere in your message for flexibility
+- **Command Usage**: Remember that `@` attachments and `/web` scraping prompts can appear anywhere inside your message for flexibility
 
 </details>
 
