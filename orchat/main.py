@@ -13,6 +13,7 @@ import tempfile
 import time
 import urllib.request
 import webbrowser
+import platform
 from collections import Counter
 
 # Third-party imports
@@ -2343,6 +2344,34 @@ def extract_urls(text: str) -> list:
     url_pattern = r'https?://[^\s]+'
     return re.findall(url_pattern, text)
 
+def analyze_command_risk(command: str) -> tuple[str, str, str]:
+    """
+    Analyze the risk level of a shell command.
+    Returns: (color, icon, warning_message)
+    """
+    cmd = command.lower().strip()
+    
+    # High risk keywords (file deletion, system modification, network downloads, execution)
+    high_risk = [
+        'rm ', 'del ', 'erase', 'format ', 'mv ', 'move ', 'python', 'node', 'sh ', 'bash ', 'powershell',
+        'pip install', 'npm install', 'git clean', 'dd ', 'wget ', 'curl ', 'chmod ', 'chown ', 'sudo ',
+        'reg ', 'attrib'
+    ]
+    
+    # Check for keywords
+    for risk in high_risk:
+        if risk in cmd or cmd.startswith(risk.strip()):
+            return "red", "⛔", "[red]CRITICAL: Command may modify files or system settings[/red]"
+            
+    # Medium risk (potential writes, file creation)
+    medium_risk = ['mkdir', 'touch', 'echo', '>>', '>', 'copy', 'cp ', 'rename', 'ren ', 'git']
+    for risk in medium_risk:
+        if risk in cmd:
+            return "orange1", "⚠️", "[orange1]WARNING: Command may write to files[/orange1]"
+            
+    # Low risk (likely read-only)
+    return "green", "🛡️", "[dim green]Safe: Command appears to be read-only[/dim green]"
+
 # ============================================================================
 # CHAT AND STREAMING FUNCTIONS
 # ============================================================================
@@ -2426,11 +2455,21 @@ def check_for_updates(silent=False):
 def chat_with_model(config, conversation_history=None):
     """ Main chat loop with model interaction """
     if conversation_history is None:
+        # Detect OS for system prompt
+        current_os = platform.system()
+        os_info = f"Operating System: {current_os} {platform.release()}"
+        
         # Use user's thinking mode preference instead of model detection
         if config['thinking_mode']:
             # Make the thinking instruction more explicit and mandatory
             thinking_instruction = (
                 f"{config['system_instructions']}\n\n"
+                f"You are running on {os_info}.\n"
+                "You have access to the local system terminal.\n"
+                "To execute a command, output it inside a boolean block like this:\n"
+                "[EXECUTE: command]\n"
+                "Example: [EXECUTE: ls -la]\n"
+                "The user will be asked for confirmation. If confirmed, the output will be returned to you.\n"
                 "CRITICAL INSTRUCTION: For EVERY response without exception, you MUST first explain your "
                 "thinking process between <thinking> and </thinking> tags, even for simple greetings or short "
                 "responses. This thinking section should explain your reasoning and approach. "
@@ -2440,7 +2479,15 @@ def chat_with_model(config, conversation_history=None):
             )
         else:
             # Use standard instructions without thinking tags
-            thinking_instruction = config['system_instructions']
+            thinking_instruction = (
+                f"{config['system_instructions']}\n\n"
+                f"You are running on {os_info}.\n"
+                "You have access to the local system terminal.\n"
+                "To execute a command, output it inside a boolean block like this:\n"
+                "[EXECUTE: command]\n"
+                "Example: [EXECUTE: ls -la] or [EXECUTE: dir]\n"
+                "The user will be asked for confirmation. If confirmed, the output will be returned to you."
+            )
 
         conversation_history = [
             {"role": "system", "content": thinking_instruction}
@@ -3293,6 +3340,7 @@ def chat_with_model(config, conversation_history=None):
                 )
 
                 if response.status_code == 200:
+                    timer_display.stop()
                     # Pass config['thinking_mode'] to stream_response
                     message_content, response_time, usage_info = stream_response(response, start_time, config['thinking_mode'])
 
@@ -3302,6 +3350,84 @@ def chat_with_model(config, conversation_history=None):
 
                         # Add assistant response to conversation history
                         conversation_history.append({"role": "assistant", "content": message_content})
+
+                        # --- NEW AGENTIC TOOL EXECUTION ---
+                        # Look for [EXECUTE: ...] pattern
+                        exec_match = re.search(r'\[EXECUTE: (.*?)\]', message_content, re.DOTALL)
+                        if exec_match:
+                            command_to_run = exec_match.group(1).strip()
+                            
+                            # Analyze security risk
+                            risk_color, risk_icon, risk_msg = analyze_command_risk(command_to_run)
+                            
+                            console.print(Panel.fit(
+                                f"[bold {risk_color}]{risk_icon} The AI wants to execute this command:[/bold {risk_color}]\n\n"
+                                f"[bold white]{command_to_run}[/bold white]\n\n"
+                                f"{risk_msg}\n"
+                                f"[dim]OS: {platform.system()}[/dim]",
+                                title="🛡️ Security Check",
+                                border_style=risk_color
+                            ))
+                            
+                            confirm = Prompt.ask(
+                                "Allow execution?", 
+                                choices=["y", "n"], 
+                                default="n"
+                            )
+                            
+                            if confirm.lower() == 'y':
+                                console.print(f"[cyan]Running: {command_to_run}...[/cyan]")
+                                try:
+                                    # Execute the command
+                                    result = subprocess.run(
+                                        command_to_run, 
+                                        shell=True, 
+                                        capture_output=True, 
+                                        text=True,
+                                        timeout=30 # Safety timeout
+                                    )
+                                    
+                                    stdout = result.stdout.strip()
+                                    stderr = result.stderr.strip()
+                                    
+                                    output = ""
+                                    if stdout:
+                                        output += f"STDOUT:\n{stdout}\n"
+                                    if stderr:
+                                        output += f"STDERR:\n{stderr}\n"
+                                    if not output:
+                                        output = "(Command executed with no output)"
+                                    
+                                    # Truncate if too long (prevents context flooding)
+                                    if len(output) > 5000:
+                                        output = output[:5000] + "\n...[truncated output]"
+                                        
+                                    console.print(Panel.fit(
+                                        output[:500] + ("..." if len(output) > 500 else ""), 
+                                        title="Output", 
+                                        border_style="green"
+                                    ))
+                                    
+                                    # Feed back to LLM
+                                    conversation_history.append({
+                                        "role": "system", 
+                                        "content": f"Command '{command_to_run}' executed.\nExit Code: {result.returncode}\nOutput:\n{output}"
+                                    })
+                                    console.print("[dim]Output added to context. You can press Enter to let it continue or type a message.[/dim]")
+
+                                except Exception as e:
+                                    error_msg = f"Execution failed: {str(e)}"
+                                    console.print(f"[red]{error_msg}[/red]")
+                                    conversation_history.append({
+                                        "role": "system", 
+                                        "content": error_msg
+                                    })
+                            else:
+                                console.print("[red]Execution denied.[/red]")
+                                conversation_history.append({
+                                    "role": "system", 
+                                    "content": "User denied permission to execute the command."
+                                })
 
                         # Use API-provided token counts if available, otherwise fallback to tiktoken
                         if usage_info:
@@ -3372,6 +3498,19 @@ def chat_with_model(config, conversation_history=None):
                                 f"{suggestions_text}",
                                 title="⚠️ Payment Required",
                                 border_style="red"
+                            ))
+                        # Special handling for rate limits (429)
+                        elif response.status_code == 429:
+                            console.print(Panel.fit(
+                                f"[yellow]⏳ Rate Limit Exceeded[/yellow]\n\n"
+                                f"You are sending requests too quickly for the current model.\n\n"
+                                f"[bold]Recommendations:[/bold]\n"
+                                f"• Wait a few moments before trying again\n"
+                                f"• Switch to a different free model ([cyan]/model[/cyan])\n"
+                                f"• Upgrade to a paid model for higher limits\n\n"
+                                f"[dim]Original error: {error_message}[/dim]",
+                                title="⚠️ Rate Limit",
+                                border_style="yellow"
                             ))
                         else:
                             console.print(f"[red]API Error ({response.status_code}): {error_message}[/red]")
