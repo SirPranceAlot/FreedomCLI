@@ -2450,48 +2450,116 @@ def check_for_updates(silent=False):
             console.print(f"[yellow]Could not check for updates: {str(e)}[/yellow]")
         return False
 
+def get_help_text():
+    """Returns the help text for the /help command"""
+    help_text = "/new - Start a new conversation\n" \
+               "/clear - Clear conversation history\n" \
+               "/cls or /clear-screen - Clear terminal screen\n" \
+               "/save - Save conversation to file\n" \
+               "/chat <list|save|resume> [session_id] - Manage conversation history\n" \
+               "/settings - Adjust model settings\n" \
+               "/tokens - Show token usage statistics\n" \
+               "/model - Change the AI model\n" \
+               "/temperature <0.0-2.0> - Adjust temperature\n" \
+               "/system - View or change system instructions\n" \
+               "/speed - Show response time statistics\n" \
+               "/theme <theme> - Change the color theme\n" \
+               "/about - Show information about OrChat\n" \
+               "/update - Check for updates\n" \
+               "/thinking - Show last AI thinking process\n" \
+               "/thinking-mode - Toggle thinking mode on/off\n" \
+               "/auto-summarize - Toggle auto-summarization of old messages\n" \
+               "/web <url> - Scrape and inject web content into context\n" \
+               "@ - Browse and attach files (can be used anywhere in your message)\n" \
+               "[yellow]Press Ctrl+C twice to exit[/yellow]"
+    
+    if HAS_PROMPT_TOOLKIT:
+        help_text += "\n\n[dim]💡 Interactive Features:[/dim]\n"
+        help_text += "[dim]• Command auto-completion: Type '/' and all commands appear instantly[/dim]\n"
+        help_text += "[dim]• File picker: Type '#' anywhere to browse and select files[/dim]\n"
+        help_text += "[dim]• Continue typing to filter commands/files (e.g., '/c' or '#main'[/dim]\n"
+        help_text += "[dim]• Press ↑/↓ arrow keys to navigate through previous prompts[/dim]\n"
+        help_text += "[dim]• Press Ctrl+R to search through prompt history[/dim]\n"
+        help_text += "[dim]• Press Esc+Enter to toggle multi-line input mode[/dim]\n"
+        help_text += "[dim]• Auto-suggestions: Previous prompts appear as grey text while typing[/dim]"
+    
+    return help_text
 
+def get_initial_system_message(config):
+    """Generates the initial system message with OS info and instructions"""
+    current_os = platform.system()
+    os_info = f"Operating System: {current_os} {platform.release()}"
+    
+    # Use user's thinking mode preference
+    if config['thinking_mode']:
+        thinking_instruction = (
+            f"{config['system_instructions']}\n\n"
+            f"You are running on {os_info}.\n"
+            "You have access to the local system terminal.\n"
+            "To execute a command, output it inside a boolean block like this:\n"
+            "[EXECUTE: command]\n"
+            "Example: [EXECUTE: ls -la]\n"
+            "The user will be asked for confirmation. If confirmed, the output will be returned to you.\n"
+            "CRITICAL INSTRUCTION: For EVERY response without exception, you MUST first explain your "
+            "thinking process between <thinking> and </thinking> tags, even for simple greetings or short "
+            "responses. This thinking section should explain your reasoning and approach. "
+            "After the thinking section, provide your final response."
+        )
+    else:
+        thinking_instruction = (
+            f"{config['system_instructions']}\n\n"
+            f"You are running on {os_info}.\n"
+            "You have access to the local system terminal.\n"
+            "To execute a command, output it inside a boolean block like this:\n"
+            "[EXECUTE: command]\n"
+            "Example: [EXECUTE: ls -la] or [EXECUTE: dir]\n"
+            "The user will be asked for confirmation. If confirmed, the output will be returned to you."
+        )
+
+    return {"role": "system", "content": thinking_instruction}
+
+def process_attachment_ui(file_path, conversation_history):
+    """Handles the UI and logic for attaching a file."""
+    # Handle relative paths - make them absolute
+    if not os.path.isabs(file_path):
+        file_path = os.path.abspath(file_path)
+    
+    # Check if file exists
+    if not os.path.exists(file_path):
+        console.print(f"[red]File not found: {file_path}[/red]")
+        console.print("[dim]Make sure the file path is correct and the file exists.[/dim]")
+        return False
+
+    # Show attachment preview
+    file_name = os.path.basename(file_path)
+    file_ext = os.path.splitext(file_path)[1].lower()
+    try:
+        file_size = os.path.getsize(file_path)
+        file_size_formatted = format_file_size(file_size)
+    except OSError:
+        file_size_formatted = "Unknown"
+
+    console.print(Panel.fit(
+        f"File: [bold]{file_name}[/bold]\n"
+        f"Type: {file_ext[1:].upper() if file_ext else 'Unknown'}\n"
+        f"Size: {file_size_formatted}",
+        title="📎 Attachment Preview",
+        border_style="cyan"
+    ))
+
+    # Process the file attachment
+    success, message = handle_attachment(file_path, conversation_history)
+    if success:
+        console.print(f"[green]{message}[/green]")
+        return True
+    else:
+        console.print(f"[red]{message}[/red]")
+        return False
 
 def chat_with_model(config, conversation_history=None):
     """ Main chat loop with model interaction """
     if conversation_history is None:
-        # Detect OS for system prompt
-        current_os = platform.system()
-        os_info = f"Operating System: {current_os} {platform.release()}"
-        
-        # Use user's thinking mode preference instead of model detection
-        if config['thinking_mode']:
-            # Make the thinking instruction more explicit and mandatory
-            thinking_instruction = (
-                f"{config['system_instructions']}\n\n"
-                f"You are running on {os_info}.\n"
-                "You have access to the local system terminal.\n"
-                "To execute a command, output it inside a boolean block like this:\n"
-                "[EXECUTE: command]\n"
-                "Example: [EXECUTE: ls -la]\n"
-                "The user will be asked for confirmation. If confirmed, the output will be returned to you.\n"
-                "CRITICAL INSTRUCTION: For EVERY response without exception, you MUST first explain your "
-                "thinking process between <thinking> and </thinking> tags, even for simple greetings or short "
-                "responses. This thinking section should explain your reasoning and approach. "
-                "After the thinking section, provide your final response. Example format:\n"
-                "<thinking>Here I analyze what to say, considering context and appropriate responses...</thinking>\n"
-                "This is my actual response to the user."
-            )
-        else:
-            # Use standard instructions without thinking tags
-            thinking_instruction = (
-                f"{config['system_instructions']}\n\n"
-                f"You are running on {os_info}.\n"
-                "You have access to the local system terminal.\n"
-                "To execute a command, output it inside a boolean block like this:\n"
-                "[EXECUTE: command]\n"
-                "Example: [EXECUTE: ls -la] or [EXECUTE: dir]\n"
-                "The user will be asked for confirmation. If confirmed, the output will be returned to you."
-            )
-
-        conversation_history = [
-            {"role": "system", "content": thinking_instruction}
-        ]
+        conversation_history = [get_initial_system_message(config)]
 
     # Initialize command history for session
     if HAS_PROMPT_TOOLKIT:
@@ -2610,52 +2678,24 @@ def chat_with_model(config, conversation_history=None):
                     console.print("[dim]Type @ to browse files in the current directory[/dim]")
                     continue
                 
-                # Handle relative paths - make them absolute
-                if not os.path.isabs(file_path):
-                    file_path = os.path.abspath(file_path)
-                
-                # Check if file exists
-                if not os.path.exists(file_path):
-                    console.print(f"[red]File not found: {file_path}[/red]")
-                    console.print("[dim]Make sure the file path is correct and the file exists.[/dim]")
+                # Check for existence and attach using helper
+                if process_attachment_ui(file_path, conversation_history):
+                     # Continue to get user's actual message about the file
+                    console.print("\n[dim]The file has been attached. Now enter your message about this file:[/dim]")
+                    
+                    # Get user input for the message about the file
+                    if HAS_PROMPT_TOOLKIT:
+                        user_message = get_user_input_with_completion(session_history)
+                    else:
+                        print("> ", end="")
+                        user_message = input()
+                    
+                    if user_message.strip():
+                        user_input = user_message  # Use the message as the actual input
+                    else:
+                        continue  # Skip if no message provided
+                else:
                     continue
-
-                # Show attachment preview
-                file_name = os.path.basename(file_path)
-                file_ext = os.path.splitext(file_path)[1].lower()
-                file_size = os.path.getsize(file_path)
-                file_size_formatted = format_file_size(file_size)
-
-                console.print(Panel.fit(
-                    f"File: [bold]{file_name}[/bold]\n"
-                    f"Type: {file_ext[1:].upper() if file_ext else 'Unknown'}\n"
-                    f"Size: {file_size_formatted}",
-                    title="📎 Attachment Preview",
-                    border_style="cyan"
-                ))
-
-                # Process the file attachment
-                success, message = handle_attachment(file_path, conversation_history)
-                if success:
-                    console.print(f"[green]{message}[/green]")
-                else:
-                    console.print(f"[red]{message}[/red]")
-                    continue
-                
-                # Continue to get user's actual message about the file
-                console.print("\n[dim]The file has been attached. Now enter your message about this file:[/dim]")
-                
-                # Get user input for the message about the file
-                if HAS_PROMPT_TOOLKIT:
-                    user_message = get_user_input_with_completion(session_history)
-                else:
-                    print("> ", end="")
-                    user_message = input()
-                
-                if user_message.strip():
-                    user_input = user_message  # Use the message as the actual input
-                else:
-                    continue  # Skip if no message provided
             
             elif '@' in user_input:
                 # Handle file picker anywhere in the message
@@ -2666,107 +2706,47 @@ def chat_with_model(config, conversation_history=None):
                     
                     if file_and_rest:
                         # Parse filename and any additional text after it
-                        # Split by whitespace to separate filename from additional text
                         file_tokens = file_and_rest.split()
                         file_part = file_tokens[0] if file_tokens else ""
                         additional_text = " ".join(file_tokens[1:]) if len(file_tokens) > 1 else ""
                         
                         if file_part:
-                            # Handle relative paths - make them absolute
-                            if not os.path.isabs(file_part):
-                                file_part = os.path.abspath(file_part)
-                            
-                            # Check if file exists
-                            if not os.path.exists(file_part):
-                                console.print(f"[red]File not found: {file_part}[/red]")
-                                console.print("[dim]Make sure the file path is correct and the file exists.[/dim]")
-                                continue
-
-                        # Show attachment preview
-                        file_name = os.path.basename(file_part)
-                        file_ext = os.path.splitext(file_part)[1].lower()
-                        file_size = os.path.getsize(file_part)
-                        file_size_formatted = format_file_size(file_size)
-
-                        console.print(Panel.fit(
-                            f"File: [bold]{file_name}[/bold]\n"
-                            f"Type: {file_ext[1:].upper() if file_ext else 'Unknown'}\n"
-                            f"Size: {file_size_formatted}",
-                            title="📎 Attachment Preview",
-                            border_style="cyan"
-                        ))
-
-                        # Process the file attachment
-                        success, attachment_message = handle_attachment(file_part, conversation_history)
-                        if success:
-                            console.print(f"[green]{attachment_message}[/green]")
-                            # Combine message part with any additional text after filename
-                            combined_message = ""
-                            if message_part:
-                                combined_message = message_part
-                            if additional_text:
+                             if process_attachment_ui(file_part, conversation_history):
+                                # Combine message part with any additional text after filename
+                                combined_message = ""
+                                if message_part:
+                                    combined_message = message_part
+                                if additional_text:
+                                    if combined_message:
+                                        combined_message += " " + additional_text
+                                    else:
+                                        combined_message = additional_text
+                                
                                 if combined_message:
-                                    combined_message += " " + additional_text
+                                    user_input = combined_message
                                 else:
-                                    combined_message = additional_text
-                            
-                            if combined_message:
-                                user_input = combined_message
-                            else:
-                                console.print("\n[dim]File attached. Enter your message about this file:[/dim]")
-                                if HAS_PROMPT_TOOLKIT:
-                                    user_input = get_user_input_with_completion(session_history)
-                                else:
-                                    print("> ", end="")
-                                    user_input = input()
-                        else:
-                            console.print(f"[red]{attachment_message}[/red]")
-                            continue
+                                    console.print("\n[dim]File attached. Enter your message about this file:[/dim]")
+                                    if HAS_PROMPT_TOOLKIT:
+                                        user_input = get_user_input_with_completion(session_history)
+                                    else:
+                                        print("> ", end="")
+                                        user_input = input()
+                             else:
+                                continue
             
             # Process commands if we have one
             if user_input.startswith('/'):
                 command = user_input.lower()
 
                 if command == '/help':
-                    help_text = "/new - Start a new conversation\n" \
-                               "/clear - Clear conversation history\n" \
-                               "/cls or /clear-screen - Clear terminal screen\n" \
-                               "/save - Save conversation to file\n" \
-                               "/chat <list|save|resume> [session_id] - Manage conversation history\n" \
-                               "/settings - Adjust model settings\n" \
-                               "/tokens - Show token usage statistics\n" \
-                               "/model - Change the AI model\n" \
-                               "/temperature <0.0-2.0> - Adjust temperature\n" \
-                               "/system - View or change system instructions\n" \
-                               "/speed - Show response time statistics\n" \
-                               "/theme <theme> - Change the color theme\n" \
-                               "/about - Show information about OrChat\n" \
-                               "/update - Check for updates\n" \
-                               "/thinking - Show last AI thinking process\n" \
-                               "/thinking-mode - Toggle thinking mode on/off\n" \
-                               "/auto-summarize - Toggle auto-summarization of old messages\n" \
-                               "/web <url> - Scrape and inject web content into context\n" \
-                               "@ - Browse and attach files (can be used anywhere in your message)\n" \
-                               "[yellow]Press Ctrl+C twice to exit[/yellow]"
-                    
-                    if HAS_PROMPT_TOOLKIT:
-                        help_text += "\n\n[dim]💡 Interactive Features:[/dim]\n"
-                        help_text += "[dim]• Command auto-completion: Type '/' and all commands appear instantly[/dim]\n"
-                        help_text += "[dim]• File picker: Type '#' anywhere to browse and select files[/dim]\n"
-                        help_text += "[dim]• Continue typing to filter commands/files (e.g., '/c' or '#main'[/dim]\n"
-                        help_text += "[dim]• Press ↑/↓ arrow keys to navigate through previous prompts[/dim]\n"
-                        help_text += "[dim]• Press Ctrl+R to search through prompt history[/dim]\n"
-                        help_text += "[dim]• Press Esc+Enter to toggle multi-line input mode[/dim]\n"
-                        help_text += "[dim]• Auto-suggestions: Previous prompts appear as grey text while typing[/dim]"
-                    
                     console.print(Panel.fit(
-                        help_text,
+                        get_help_text(),
                         title="Available Commands"
                     ))
                     continue
 
                 elif command == '/clear':
-                    conversation_history = [{"role": "system", "content": config['system_instructions']}]
+                    conversation_history = [get_initial_system_message(config)]
                     console.print("[green]Conversation history cleared![/green]")
                     continue
 
@@ -2787,7 +2767,7 @@ def chat_with_model(config, conversation_history=None):
                             console.print(f"[green]Conversation saved to {filepath}[/green]")
 
                     # Reset conversation
-                    conversation_history = [{"role": "system", "content": config['system_instructions']}]
+                    conversation_history = [get_initial_system_message(config)]
 
                     # Reset session tracking variables
                     total_tokens_used = 0
@@ -2957,7 +2937,7 @@ def chat_with_model(config, conversation_history=None):
                     parts = user_input.split(' ', 1)
                     if len(parts) > 1:
                         config['system_instructions'] = parts[1]
-                        conversation_history[0] = {"role": "system", "content": config['system_instructions']}
+                        conversation_history[0] = get_initial_system_message(config)
                         save_config(config)
                         console.print("[green]System instructions updated![/green]")
                     else:
@@ -2979,7 +2959,7 @@ def chat_with_model(config, conversation_history=None):
                                     lines.append(line)
                             system_instructions = "\n".join(lines)
                             config['system_instructions'] = system_instructions
-                            conversation_history[0] = {"role": "system", "content": config['system_instructions']}
+                            conversation_history[0] = get_initial_system_message(config)
                             save_config(config)
                             console.print("[green]System instructions updated![/green]")
                     continue
