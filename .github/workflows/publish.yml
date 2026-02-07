@@ -70,19 +70,15 @@ jobs:
     - name: Update version in files
       run: |
         echo "Updating version to: $VERSION"
-        # Update setup.py version
-        sed -i "s/version=\"[^\"]*\"/version=\"$VERSION\"/" setup.py
         # Update pyproject.toml version
         sed -i "s/version = \"[^\"]*\"/version = \"$VERSION\"/" pyproject.toml
         # Verify the changes
-        echo "setup.py version line:"
-        grep 'version=' setup.py
         echo "pyproject.toml version line:"
         grep 'version =' pyproject.toml
     
     - name: Build package
       run: |
-        python -m build
+        python build_release.py
         
     - name: Check built package
       run: |
