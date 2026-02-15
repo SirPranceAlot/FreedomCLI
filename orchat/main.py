@@ -3332,9 +3332,11 @@ def chat_with_model(config, conversation_history=None):
                         conversation_history.append({"role": "assistant", "content": message_content})
 
                         # --- NEW AGENTIC TOOL EXECUTION ---
-                        # Look for [EXECUTE: ...] pattern
-                        exec_match = re.search(r'\[EXECUTE: (.*?)\]', message_content, re.DOTALL)
-                        if exec_match:
+                        # Look for all [EXECUTE: ...] patterns
+                        exec_matches = re.finditer(r'\[EXECUTE: (.*?)\]', message_content, re.DOTALL)
+                        commands_found = False
+                        for exec_match in exec_matches:
+                            commands_found = True
                             command_to_run = exec_match.group(1).strip()
                             
                             # Analyze security risk
