@@ -2,8 +2,6 @@
 
 # 🤖 FreedomCLI
 
-<img src="branding/OrChat-Interface.png" width="800" alt="FreedomCLI Interface"/>
-
 [![PyPI version](https://img.shields.io/pypi/v/freedomcli?color=86efac&style=for-the-badge&logo=pypi&logoColor=black)](https://badge.fury.io/py/freedomcli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge&logo=opensource&logoColor=white)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-10b981?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/downloads/)
