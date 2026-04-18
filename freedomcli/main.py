@@ -23,6 +23,15 @@ from freedomcli.models import select_model, auto_detect_thinking_mode, get_model
 from freedomcli.file_handler import handle_attachment
 from freedomcli.ui import create_chat_ui, get_initial_system_message
 from freedomcli.chat import chat_with_model
+from rich.panel import Panel
+
+# Local imports
+from freedomcli.constants import APP_NAME, APP_VERSION, console
+from freedomcli.config import load_config, save_config, secure_input_api_key, validate_api_key_format
+from freedomcli.models import select_model, auto_detect_thinking_mode, get_model_recommendations
+from freedomcli.file_handler import handle_attachment
+from freedomcli.ui import create_chat_ui, get_initial_system_message
+from freedomcli.chat import chat_with_model
 
 
 def setup_wizard():
