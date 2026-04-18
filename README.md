@@ -1,18 +1,18 @@
 <div align="center">
 
-# 🤖 OrChat
+# 🤖 FreedomCLI
 
-<img src="branding/OrChat-Interface.png" width="800" alt="OrChat Interface"/>
-
-[![PyPI version](https://img.shields.io/pypi/v/orchat?color=86efac&style=for-the-badge&logo=pypi&logoColor=black)](https://badge.fury.io/py/orchat)
+[![PyPI version](https://img.shields.io/pypi/v/freedomcli?color=86efac&style=for-the-badge&logo=pypi&logoColor=black)](https://badge.fury.io/py/freedomcli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge&logo=opensource&logoColor=white)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-10b981?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![Downloads](https://img.shields.io/pepy/dt/orchat?color=1f2937&style=for-the-badge&logo=download&logoColor=white)](https://pepy.tech/project/orchat)
+[![Downloads](https://img.shields.io/pepy/dt/freedomcli?color=1f2937&style=for-the-badge&logo=download&logoColor=white)](https://pepy.tech/project/freedomcli)
 [![GitHub Stars](https://img.shields.io/github/stars/oop7/OrChat?color=86efac&style=for-the-badge&logo=github&logoColor=black)](https://github.com/oop7/OrChat/stargazers)
 
 [🚀 Installation](#installation) • [✨ Features](#features) • [💬 Chat Commands](#chat-commands) • [🗂️ Conversation Management](#conversation-management) • [📁 File Attachment](#file-attachment) • [🧠 Thinking Mode](#thinking-mode) • [⚙️ Configuration](#configuration) • [🔍 Troubleshooting](#troubleshooting) • [🤝 Contributing](#contributing)
 
 A powerful CLI for chatting with AI models through OpenRouter with streaming responses, token tracking, auto-update checking, multi-line input, conversation management with AI-generated summaries, and extensive customization options.
+
+*FreedomCLI is a fork of [OrChat](https://github.com/oop7/OrChat) by Muhamed, used under the MIT License.*
 
 </div>
 
@@ -46,7 +46,7 @@ A powerful CLI for chatting with AI models through OpenRouter with streaming res
 - **Smart File Picker**: Attach files anywhere in your message using `@` (e.g., `analyze @myfile.py`)
 - **Attachment Preview**: See filename, type, and size before injecting content into the conversation
 - **Multimodal Support**: Share images and various file types with compatible AI models
-- **Enhanced File Processing**: Better error handling, security validation (10 MB limit), and path sanitation
+- **Enhanced File Processing**: Better error handling, security validation (10 MB limit), and path sanitation
 - **Web Content Scraping**: Fetch and inject web content from URLs with automatic detection and clean markdown conversion
 
 </details>
@@ -95,12 +95,12 @@ A powerful CLI for chatting with AI models through OpenRouter with streaming res
 <details>
 <summary><strong>🛡️ Command Execution Workflow </strong></summary>
 
-OrChat now supports secure, agentic shell access so the AI can help you explore your project without ever leaving the terminal.
+FreedomCLI supports secure, agentic shell access so the AI can help you explore your project without ever leaving the terminal.
 
 1. **Structured Requests**: The assistant emits `[EXECUTE: your_command]` inside its response when it needs shell access.
-2. **Risk Panel**: OrChat classifies the command (Safe 🟢, Warning 🟠, Critical 🔴) based on keywords such as `rm`, `pip install`, etc., and shows the OS context plus the exact command.
+2. **Risk Panel**: FreedomCLI classifies the command (Safe 🟢, Warning 🟠, Critical 🔴) based on keywords such as `rm`, `pip install`, etc., and shows the OS context plus the exact command.
 3. **Explicit Approval**: You must confirm with `y/n`. Declining keeps the conversation going; the AI is notified that access was denied.
-4. **Sandboxed Execution**: Approved commands run through your native shell with a 30-second timeout, capturing both stdout and stderr (truncated after 5 000 chars to protect context length).
+4. **Sandboxed Execution**: Approved commands run through your native shell with a 30-second timeout, capturing both stdout and stderr (truncated after 5 000 chars to protect context length).
 5. **Automatic Feedback**: Results are added back to the conversation so the AI can reason over the output immediately.
 
 This flow keeps you in control while still giving the model the ability to `dir`, `find`, `grep`, or run tests when you approve it.
@@ -115,11 +115,11 @@ This flow keeps you in control while still giving the model the ability to `dir`
 ### From PyPI (Recommended)
 
 ```bash
-pip install orchat
+pip install freedomcli
 ```
 ```bash
 # Run the application
-orchat
+freedomcli
 ```
 
 ### From Source
@@ -147,11 +147,11 @@ python -m orchat.main
 <details>
 <summary><strong>🏁 Getting Started</strong></summary>
 
-1. Install OrChat using one of the methods above
+1. Install FreedomCLI using one of the methods above
 2. Run the setup wizard
    - After a PyPI install:
      ```bash
-     orchat --setup
+     freedomcli --setup
      ```
    - From a cloned repository:
      ```bash
@@ -179,7 +179,7 @@ python -m orchat.main
 2. Ensure fzf is in your path
 3. From now on, the model selection will use fzf for powerful fuzzy search and filtering capabilities!
 
-**Note**: If fzf is not installed, OrChat will automatically fall back to standard model selection.
+**Note**: If fzf is not installed, FreedomCLI will automatically fall back to standard model selection.
 
 </details>
 
@@ -189,14 +189,14 @@ python -m orchat.main
 <details>
 <summary><strong>🔧 Configuration Methods</strong></summary>
 
-OrChat can be configured in multiple ways:
+FreedomCLI can be configured in multiple ways:
 
-1. **Setup Wizard**: Run `orchat --setup` (or `python -m orchat.main --setup` inside the repo) for interactive configuration
+1. **Setup Wizard**: Run `freedomcli --setup` (or `python -m orchat.main --setup` inside the repo) for interactive configuration
 2. **Config File**: Edit the `config.ini` file in the application directory
 3. **Environment Variables**: Create a `.env` file with your configuration
 4. **System Environment Variables**: Set environment variables directly in your system (recommended for security)
 
-**Enhanced Environment Support**: OrChat now supports system/user environment variables, removing the strict requirement for `.env` files.
+**Enhanced Environment Support**: FreedomCLI now supports system/user environment variables, removing the strict requirement for `.env` files.
 
 </details>
 
@@ -261,7 +261,7 @@ THINKING_MODE = False
 | `/thinking-mode`          | Toggle thinking mode on/off                           |
 | `/auto-summarize`         | Toggle auto-summarization of old messages             |
 | `/web <url>`              | Scrape and inject web content into context            |
-| `/about`                  | Show information about OrChat                         |
+| `/about`                  | Show information about FreedomCLI                     |
 | `/update`                 | Check for updates                                     |
 | `/settings`               | View current settings                                 |
 | **Ctrl+C** (twice)        | **Exit the chat (press twice within 2 seconds)**     |
@@ -272,7 +272,7 @@ THINKING_MODE = False
 <details>
 <summary><strong>📋 Session Management</strong></summary>
 
-OrChat provides powerful conversation management with human-readable session summaries:
+FreedomCLI provides powerful conversation management with human-readable session summaries:
 
 **Commands:**
 - `/chat list` - View all saved conversations with meaningful names
@@ -318,7 +318,7 @@ examine @script.py and explain its logic
 - **Inline Auto-Completion**: Type `@` and continue typing to filter files; relative paths expand automatically
 - **Metadata Preview**: Panel shows filename, extension, and size before injection
 - **Improved Error Handling**: Clear messages for missing files, oversized attachments, or unsupported types
-- **Security Validation**: Built-in file size (10 MB) and type checks with sanitized filenames
+- **Security Validation**: Built-in file size (10 MB) and type checks with sanitized filenames
 - **Web Content Bridge**: URLs inside your message can be scraped and attached alongside local files
 
 </details>
@@ -346,7 +346,7 @@ Fetch and analyze web content directly in your conversations:
 /web https://example.com
 ```
 
-Or simply paste a URL in your message and OrChat will automatically detect it and offer to scrape the content:
+Or simply paste a URL in your message and FreedomCLI will automatically detect it and offer to scrape the content:
 
 ```
 check out this article: https://example.com/article
@@ -382,7 +382,7 @@ check out this article: https://example.com/article
 <details>
 <summary><strong>🎯 Basic Usage</strong></summary>
 
-OrChat can display the AI's reasoning process with enhanced thinking mode:
+FreedomCLI can display the AI's reasoning process with enhanced thinking mode:
 
 ```
 /thinking-mode       # Toggle thinking mode on/off
@@ -422,9 +422,9 @@ Change the visual appearance with the `/theme` command:
 <details>
 <summary><strong>📊 Smart Context Management</strong></summary>
 
-OrChat intelligently manages conversation context to keep within token limits:
+FreedomCLI intelligently manages conversation context to keep within token limits:
 
-- **Auto-Summarization** (NEW): Instead of simply trimming old messages, OrChat uses AI to create concise summaries of earlier conversation parts, preserving important context while freeing up tokens
+- **Auto-Summarization** (NEW): Instead of simply trimming old messages, FreedomCLI uses AI to create concise summaries of earlier conversation parts, preserving important context while freeing up tokens
 - **Configurable Threshold**: Set when summarization kicks in (default: 70% of token limit)
 - **Fallback Trimming**: If summarization is disabled or fails, automatically trims old messages
 - **Visual Feedback**: Clear notifications when messages are summarized or trimmed
@@ -435,7 +435,7 @@ OrChat intelligently manages conversation context to keep within token limits:
 - Toggle auto-summarization with `/auto-summarize` command
 
 **How it works:**
-- When your conversation approaches the token limit (default: 70%), OrChat automatically summarizes the oldest messages
+- When your conversation approaches the token limit (default: 70%), FreedomCLI automatically summarizes the oldest messages
 - The summary preserves key information, decisions, and context in a condensed form
 - Recent messages are kept in full to maintain conversation flow
 - You can disable this feature and revert to simple trimming with `/auto-summarize`
@@ -459,7 +459,7 @@ Check for updates with the `/update` command to see if a newer version is availa
 <details>
 <summary><strong>🔍 Common Issues & Solutions</strong></summary>
 
-- **API Key Issues**: Ensure your OpenRouter API key is correctly set in config.ini, .env file, or system environment variables. OrChat will prompt for re-entry if an incorrect key is detected
+- **API Key Issues**: Ensure your OpenRouter API key is correctly set in config.ini, .env file, or system environment variables. FreedomCLI will prompt for re-entry if an incorrect key is detected
 - **Insufficient Account Credit**: If you receive a 402 error, check your OpenRouter account balance and add funds as needed
 - **Rate Limits (429)**: Too many rapid requests will trigger a yellow "Rate Limit" panel—wait a few seconds or switch to another model with `/model`
 - **File Path Problems**: When attaching files via `@`, use quotes for paths with spaces and ensure the path is valid for your OS
@@ -473,6 +473,8 @@ Check for updates with the `/update` command to see if a newer version is availa
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+Original project: [OrChat](https://github.com/oop7/OrChat) by Muhamed
+
 <a id="contributing"></a>
 ## 🤝 Contributing
 
@@ -485,7 +487,7 @@ Contributions are welcome! Feel free to open issues or submit pull requests.
 
 - [OpenRouter](https://openrouter.ai/) for providing unified API access to AI models
 - [Rich](https://github.com/Textualize/rich) for the beautiful terminal interface
-- All contributors and users who provide feedback and help improve OrChat
+- [Muhamed](https://github.com/oop7) - Original author of OrChat, the foundation of FreedomCLI
+- All contributors and users who provide feedback and help improve FreedomCLI
 
 </details>
-

@@ -67,8 +67,8 @@ colorama.init()
 # App metadata
 APP_NAME = "FreedomCLI"
 APP_VERSION = "1.0.0"
-REPO_URL = "https://github.com/oop7/OrChat"
-API_URL = "https://api.github.com/repos/oop7/OrChat/releases/latest"
+REPO_URL = "https://github.com/SirPranceAlot/FreedomCLI"
+API_URL = "https://github.com/SirPranceAlot/FreedomCLI/releases/latest"
 
 # Security & file constraints
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB limit
@@ -1459,7 +1459,7 @@ def setup_wizard():
     """Interactive setup wizard for first-time users"""
     console.print(Panel.fit(
         "[bold blue]Welcome to the FreedomCLI Setup Wizard![/bold blue]\n"
-        "Let's configure your chat settings.\n\n[dim]Based on OrChat by Muhamed (MIT License)[/dim]",
+        "Let's configure your chat settings.\n\n",
         title="Setup Wizard"
     ))
 
