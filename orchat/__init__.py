@@ -1,6 +1,6 @@
-"""OrChat - A powerful CLI for AI models via OpenRouter."""
+"""FreedomCLI - A powerful CLI for AI models via OpenRouter (fork of OrChat)."""
 
-__version__ = "1.4.6"
+__version__ = "1.0.0"
 
 from .main import main
 

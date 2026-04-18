@@ -7,6 +7,7 @@ import getpass
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -64,8 +65,8 @@ colorama.init()
 # ============================================================================
 
 # App metadata
-APP_NAME = "OrChat"
-APP_VERSION = "1.4.6"
+APP_NAME = "FreedomCLI"
+APP_VERSION = "1.0.0"
 REPO_URL = "https://github.com/oop7/OrChat"
 API_URL = "https://api.github.com/repos/oop7/OrChat/releases/latest"
 
@@ -118,7 +119,7 @@ def format_file_size(size_bytes: int) -> str:
 # ============================================================================
 
 class OrChatCompleter(Completer):
-    """Optimized command completer with descriptions."""
+    """Optimized command completer with descriptions. (Original: OrChat by Muhamed)"""
     
     # Static command definitions for better performance
     COMMANDS = {
@@ -135,7 +136,7 @@ class OrChatCompleter(Completer):
         'system': 'View or change system instructions',
         'speed': 'Show response time statistics',
         'theme': 'Change the color theme',
-        'about': 'Show information about OrChat',
+        'about': 'Show information about FreedomCLI',
         'update': 'Check for updates',
         'thinking': 'Show last AI thinking process',
         'thinking-mode': 'Toggle thinking mode on/off',
@@ -264,13 +265,13 @@ class CombinedCompleter(Completer):
             yield from self.file_completer.get_completions(document, complete_event)
 
 def create_command_completer():
-    """Create a combined completer for OrChat"""
+    """Create a combined completer for FreedomCLI"""
     if not HAS_PROMPT_TOOLKIT:
         return None
     
     return CombinedCompleter()
 
-def get_user_input_with_completion(history=None):
+def get_user_input_with_completion(history=None, after_execute_ref=None):
     """Get user input with command auto-completion and history support"""
     if not HAS_PROMPT_TOOLKIT:
         return input("> ")
@@ -375,7 +376,12 @@ def get_user_input_with_completion(history=None):
             if multiline_mode[0]:
                 return HTML('> <style fg="yellow">[Multi-line] </style>')
             return "> "
-        
+
+        if after_execute_ref is not None and after_execute_ref.get("after_execute"):
+            after_execute_ref["after_execute"] = False  # Reset now - we're consuming the flag
+            result = "Continue"  # Force result to "Continue" if after_execute was True
+            return result
+
         result = prompt(
             get_prompt,
             completer=completer,
@@ -388,6 +394,7 @@ def get_user_input_with_completion(history=None):
             wrap_lines=True,
             key_bindings=bindings
         )
+
         return result
     except (KeyboardInterrupt, EOFError):
         raise
@@ -1451,8 +1458,8 @@ def calculate_session_cost(total_prompt_tokens, total_completion_tokens, pricing
 def setup_wizard():
     """Interactive setup wizard for first-time users"""
     console.print(Panel.fit(
-        "[bold blue]Welcome to the OrChat Setup Wizard![/bold blue]\n"
-        "Let's configure your chat settings.",
+        "[bold blue]Welcome to the FreedomCLI Setup Wizard![/bold blue]\n"
+        "Let's configure your chat settings.\n\n[dim]Based on OrChat by Muhamed (MIT License)[/dim]",
         title="Setup Wizard"
     ))
 
@@ -1727,7 +1734,7 @@ def save_conversation(conversation_history, filename, fmt="markdown"):
     """Save conversation to file in various formats"""
     if fmt == "markdown":
         with open(filename, 'w', encoding="utf-8") as f:
-            f.write("# OrChat Conversation\n\n")
+            f.write("# FreedomCLI Conversation\n\n")
             f.write(f"Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             for msg in conversation_history:
                 if msg['role'] == 'system':
@@ -1740,14 +1747,14 @@ def save_conversation(conversation_history, filename, fmt="markdown"):
     elif fmt == "html":
         with open(filename, 'w', encoding="utf-8") as f:
             f.write("<!DOCTYPE html>\n<html>\n<head>\n")
-            f.write("<title>OrChat Conversation</title>\n")
+            f.write("<title>FreedomCLI Conversation</title>\n")
             f.write("<style>\n")
             f.write("body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }\n")
             f.write(".system { background-color: #f0f0f0; padding: 10px; border-radius: 5px; }\n")
             f.write(".user { background-color: #e1f5fe; padding: 10px; border-radius: 5px; margin: 10px 0; }\n")
             f.write(".assistant { background-color: #f1f8e9; padding: 10px; border-radius: 5px; margin: 10px 0; }\n")
             f.write("</style>\n</head>\n<body>\n")
-            f.write("<h1>OrChat Conversation</h1>\n")
+            f.write("<h1>FreedomCLI Conversation</h1>\n")
             f.write(f"<p>Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>\n")
 
             for msg in conversation_history:
@@ -2344,33 +2351,81 @@ def extract_urls(text: str) -> list:
     url_pattern = r'https?://[^\s]+'
     return re.findall(url_pattern, text)
 
-def analyze_command_risk(command: str) -> tuple[str, str, str]:
+# Commands that are blocked for security reasons
+# These commands can modify system state, escalate privileges, or download malicious content
+DANGEROUS_COMMANDS = {
+    # File deletion/destruction
+    'rm', 'del', 'erase', 'format', 'rmdir', 'rd',
+    # Disk/filesystem modification
+    'mkfs', 'dd', 'fdisk', 'parted', 'diskpart',
+    # Permission/ownership changes
+    'chmod', 'chown', 'chgrp', 'icacls', 'attrib',
+    # Privilege escalation
+    'sudo', 'su', 'doas', 'runas',
+    # System control
+    'shutdown', 'reboot', 'halt', 'poweroff', 'init', 'systemctl',
+    # Kernel/module loading
+    'insmod', 'rmmod', 'modprobe', 'kextload',
+    # Network configuration
+    'iptables', 'netsh', 'route', 'ifconfig', 'ipconfig',
+    # Process termination
+    'kill', 'killall', 'pkill', 'taskkill',
+    # Network downloads (could download malware)
+    'wget', 'certutil',
+    # Script interpreters (bypasses shell=False protection)
+    'python', 'python3', 'python2', 'node', 'ruby', 'perl', 'php',
+    'sh', 'bash', 'zsh', 'fish', 'dash',
+    'powershell', 'pwsh', 'cmd',
+    # Package managers (could install malicious packages)
+    'pip', 'pip3', 'npm', 'yarn', 'gem', 'cargo', 'apt', 'apt-get',
+    'yum', 'dnf', 'pacman', 'brew', 'choco', 'winget',
+}
+
+def analyze_command_risk(command: str) -> tuple[str, str, str, bool]:
     """
     Analyze the risk level of a shell command.
-    Returns: (color, icon, warning_message)
+    Returns: (color, icon, warning_message, is_blocked)
     """
     cmd = command.lower().strip()
+    
+    # Block obviously dangerous command patterns
+    dangerous_patterns = [
+        'rm -rf', 'rm -r /', 'del /f', 'format ',
+        '> /dev/sda', '> /dev/hda',
+        ':(){:|:&};:',  # fork bomb
+    ]
+    
+    for pattern in dangerous_patterns:
+        if pattern in cmd:
+            return "red", "⛔", f"[red]⛔ Command blocked: contains dangerous pattern '{pattern}'[/red]", True
+    
+    # Extract base command (first word before any pipe or semicolon)
+    base_cmd = command.split('|')[0].split(';')[0].split()[0].lower() if command.split('|')[0].split(';')[0].split() else ''
+    
+    # Check against DANGEROUS_COMMANDS set
+    if base_cmd in DANGEROUS_COMMANDS:
+        return "red", "⛔", f"[red]⛔ Command '{base_cmd}' is blocked for security reasons[/red]", True
     
     # High risk keywords (file deletion, system modification, network downloads, execution)
     high_risk = [
         'rm ', 'del ', 'erase', 'format ', 'mv ', 'move ', 'python', 'node', 'sh ', 'bash ', 'powershell',
-        'pip install', 'npm install', 'git clean', 'dd ', 'wget ', 'curl ', 'chmod ', 'chown ', 'sudo ',
+        'pip install', 'npm install', 'git clean', 'dd ', 'wget ', 'chmod ', 'chown ', 'sudo ',
         'reg ', 'attrib'
     ]
     
     # Check for keywords
     for risk in high_risk:
         if risk in cmd or cmd.startswith(risk.strip()):
-            return "red", "⛔", "[red]CRITICAL: Command may modify files or system settings[/red]"
+            return "red", "⛔", "[red]CRITICAL: Command may modify files or system settings[/red]", False
             
     # Medium risk (potential writes, file creation)
     medium_risk = ['mkdir', 'touch', 'echo', '>>', '>', 'copy', 'cp ', 'rename', 'ren ', 'git']
     for risk in medium_risk:
         if risk in cmd:
-            return "orange1", "⚠️", "[orange1]WARNING: Command may write to files[/orange1]"
+            return "orange1", "⚠️", "[orange1]WARNING: Command may write to files[/orange1]", False
             
     # Low risk (likely read-only)
-    return "green", "🛡️", "[dim green]Safe: Command appears to be read-only[/dim green]"
+    return "green", "🛡️", "[dim green]Safe: Command appears to be read-only[/dim green]", False
 
 # ============================================================================
 # CHAT AND STREAMING FUNCTIONS
@@ -2379,20 +2434,20 @@ def analyze_command_risk(command: str) -> tuple[str, str, str]:
 
 
 def show_about():
-    """Display information about OrChat"""
+    """Display information about FreedomCLI"""
     console.print(Panel.fit(
-        f"[bold blue]Or[/bold blue][bold green]Chat[/bold green] [dim]v{APP_VERSION}[/dim]\n\n"
+        f"[bold blue]Freedom[/bold blue][bold green]CLI[/bold green] [dim]v{APP_VERSION}[/dim]\n\n"
         "A powerful CLI for chatting with AI models through OpenRouter.\n\n"
         f"[link={REPO_URL}]{REPO_URL}[/link]\n\n"
-        "Created by OOP7\n"
+        "Fork of OrChat by Muhamed (MIT License)\n"
         "Licensed under MIT License",
-        title="ℹ️ About OrChat",
+        title="ℹ️ About FreedomCLI",
         border_style="blue"
     ))
 
 # Add this function to check for updates
 def check_for_updates(silent=False):
-    """Check GitHub for newer versions of OrChat"""
+    """Check GitHub for newer versions of FreedomCLI"""
     if not silent:
         console.print("[bold cyan]Checking for updates...[/bold cyan]")
     try:
@@ -2403,7 +2458,7 @@ def check_for_updates(silent=False):
 
                 if version.parse(latest_version) > version.parse(APP_VERSION):
                     console.print(Panel.fit(
-                        f"[yellow]A new version of OrChat is available![/yellow]\n"
+                        f"[yellow]A new version of FreedomCLI is available![/yellow]\n"
                         f"Current version: [cyan]{APP_VERSION}[/cyan]\n"
                         f"Latest version: [green]{latest_version}[/green]\n\n"
                         f"Update at: {REPO_URL}/releases",
@@ -2416,10 +2471,10 @@ def check_for_updates(silent=False):
                         if update_choice.lower() == "y":
                             try:
                                 console.print("[cyan]Attempting to update via pip...[/cyan]")
-                                result = subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "orchat"], 
+                                result = subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "freedomcli"],
                                                       capture_output=True, text=True)
                                 if result.returncode == 0:
-                                    console.print("[green]Update successful! Please restart OrChat.[/green]")
+                                    console.print("[green]Update successful! Please restart FreedomCLI.[/green]")
                                     sys.exit(0)
                                 else:
                                     console.print(f"[yellow]Update failed: {result.stderr}[/yellow]")
@@ -2438,7 +2493,7 @@ def check_for_updates(silent=False):
                     return True  # Update available
                 else:
                     if not silent:
-                        console.print("[green]You are using the latest version of OrChat![/green]")
+                        console.print("[green]You are using the latest version of FreedomCLI![/green]")
                     return False  # No update available
             else:
                 if not silent:
@@ -2464,7 +2519,7 @@ def get_help_text():
                "/system - View or change system instructions\n" \
                "/speed - Show response time statistics\n" \
                "/theme <theme> - Change the color theme\n" \
-               "/about - Show information about OrChat\n" \
+               "/about - Show information about FreedomCLI\n" \
                "/update - Check for updates\n" \
                "/thinking - Show last AI thinking process\n" \
                "/thinking-mode - Toggle thinking mode on/off\n" \
@@ -2556,11 +2611,11 @@ def process_attachment_ui(file_path, conversation_history):
         console.print(f"[red]{message}[/red]")
         return False
 
-def chat_with_model(config, conversation_history=None):
+def chat_with_model(config, conversation_history=None, after_execute_ref=None):
     """ Main chat loop with model interaction """
     if conversation_history is None:
         conversation_history = [get_initial_system_message(config)]
-
+    
     # Initialize command history for session
     if HAS_PROMPT_TOOLKIT:
         session_history = InMemoryHistory()
@@ -2594,7 +2649,7 @@ def chat_with_model(config, conversation_history=None):
         pricing_display += f" [dim]({pricing_info['provider']})[/dim]"
 
     console.print(Panel.fit(
-        f"[bold blue]Or[/bold blue][bold green]Chat[/bold green] [dim]v{APP_VERSION}[/dim]\n"
+        f"[bold blue]Freedom[/bold blue][bold green]CLI[/bold green] [dim]v{APP_VERSION}[/dim]\n"
         f"[cyan]Model:[/cyan] {config['model']}\n"
         f"[cyan]Temperature:[/cyan] {config['temperature']}\n"
         f"[cyan]Thinking mode:[/cyan] {'[green]✓ Enabled[/green]' if config['thinking_mode'] else '[yellow]✗ Disabled[/yellow]'}\n"
@@ -2640,8 +2695,11 @@ def chat_with_model(config, conversation_history=None):
     if trimmed_count > 0:
         console.print(f"[yellow]Note: Removed {trimmed_count} earlier messages to stay within the context window.[/yellow]")
 
+
     while True:
         try:
+            
+
             # Display user input panel similar to assistant style
             console.print("\n")
             console.print(Panel.fit(
@@ -2649,10 +2707,12 @@ def chat_with_model(config, conversation_history=None):
                 title="👤 You",
                 border_style="blue"
             ))
+
+
             
             # Use auto-completion if available, otherwise fallback to regular input
             if HAS_PROMPT_TOOLKIT:
-                user_input = get_user_input_with_completion(session_history)
+                user_input = get_user_input_with_completion(session_history, after_execute_ref=after_execute_ref)
             else:
                 print("> ", end="")
                 user_input = input()
@@ -3104,7 +3164,7 @@ def chat_with_model(config, conversation_history=None):
                         pricing_display += f" [green]({current_pricing_info['provider']})[/green]"
                         
                     console.print(Panel.fit(
-                        f"[bold blue]Or[/bold blue][bold green]Chat[/bold green] [dim]v{APP_VERSION}[/dim]\n"
+                        f"[bold blue]Freedom[/bold blue][bold green]CLI[/bold green] [dim]v{APP_VERSION}[/dim]\n"
                         f"[cyan]Model:[/cyan] {config['model']}\n"
                         f"[cyan]Temperature:[/cyan] {config['temperature']}\n"
                         f"[cyan]Thinking mode:[/cyan] {'[green]✓ Enabled[/green]' if config['thinking_mode'] else '[yellow]✗ Disabled[/yellow]'}\n"
@@ -3340,7 +3400,7 @@ def chat_with_model(config, conversation_history=None):
                             command_to_run = exec_match.group(1).strip()
                             
                             # Analyze security risk
-                            risk_color, risk_icon, risk_msg = analyze_command_risk(command_to_run)
+                            risk_color, risk_icon, risk_msg, is_blocked = analyze_command_risk(command_to_run)
                             
                             console.print(Panel.fit(
                                 f"[bold {risk_color}]{risk_icon} The AI wants to execute this command:[/bold {risk_color}]\n\n"
@@ -3358,16 +3418,47 @@ def chat_with_model(config, conversation_history=None):
                             )
                             
                             if confirm.lower() == 'y':
+                                # Use enhanced analyze_command_risk for all security checks
+                                _, _, block_msg, is_blocked = analyze_command_risk(command_to_run)
+                                
+                                if is_blocked:
+                                    console.print(block_msg)
+                                    conversation_history.append({
+                                        "role": "system", 
+                                        "content": f"Command was blocked for security reasons."
+                                    })
+                                    continue
+                                
                                 console.print(f"[cyan]Running: {command_to_run}...[/cyan]")
                                 try:
+                                    # Try safe parsing first, fall back to shell for complex commands
+                                    use_shell = False
+                                    command_list = None
+                                    
+                                    try:
+                                        command_list = shlex.split(command_to_run)
+                                    except ValueError:
+                                        # Complex command with pipes/quotes - need shell mode
+                                        use_shell = True
+                                    
                                     # Execute the command
-                                    result = subprocess.run(
-                                        command_to_run, 
-                                        shell=True, 
-                                        capture_output=True, 
-                                        text=True,
-                                        timeout=30 # Safety timeout
-                                    )
+                                    if use_shell:
+                                        console.print("[dim]Using shell mode for complex command[/dim]")
+                                        result = subprocess.run(
+                                            command_to_run,
+                                            shell=True,
+                                            capture_output=True, 
+                                            text=True,
+                                            timeout=30
+                                        )
+                                    else:
+                                        result = subprocess.run(
+                                            command_list,
+                                            shell=False,  # Safe - no shell interpretation
+                                            capture_output=True, 
+                                            text=True,
+                                            timeout=30 # Safety timeout
+                                        )
                                     
                                     stdout = result.stdout.strip()
                                     stderr = result.stderr.strip()
@@ -3452,6 +3543,11 @@ def chat_with_model(config, conversation_history=None):
                         
                         # Increment message count for successful exchanges
                         message_count += 1
+
+                        # Only set after_execute if commands were actually found and executed
+                        if commands_found:
+                            after_execute_ref["after_execute"] = True
+                            console.print(f"after execute set: {after_execute_ref['after_execute']}")  # Debug print
                     else:
                         # If we didn't get content but status was 200, something went wrong with streaming
                         console.print("[red]Error: Received empty response from API[/red]")
@@ -3534,8 +3630,8 @@ def chat_with_model(config, conversation_history=None):
 def create_chat_ui():
     """Creates a modern, attractive CLI interface using rich components"""
     console.print(Panel.fit(
-        f"[bold blue]Or[/bold blue][bold green]Chat[/bold green] [dim]v{APP_VERSION}[/dim]\n"
-        "[dim]A powerful CLI for AI models via OpenRouter[/dim]",
+        f"[bold blue]Freedom[/bold blue][bold green]CLI[/bold green] [dim]v{APP_VERSION}[/dim]\n"
+        "[dim]A powerful CLI for AI models via OpenRouter (fork of OrChat)[/dim]",
         title="🚀 Welcome",
         border_style="green",
         padding=(1, 2)
@@ -3588,8 +3684,8 @@ def get_model_recommendations(task_type=None, budget=None):
     return recommended or all_models
 
 def main():
-    parser = argparse.ArgumentParser(description="OrChat - AI chat powered by OpenRouter")
-    parser.add_argument("--version", action="version", version="OrChat v1.4.6")
+    parser = argparse.ArgumentParser(description="FreedomCLI - AI chat powered by OpenRouter (fork of OrChat)")
+    parser.add_argument("--version", action="version", version="FreedomCLI v1.0.0")
     parser.add_argument("--setup", action="store_true", help="Run the setup wizard")
     parser.add_argument("--model", type=str, help="Specify model to use")
     parser.add_argument("--task", type=str, choices=["creative", "coding", "analysis", "chat"],
@@ -3696,7 +3792,8 @@ def main():
             console.print(f"[red]{message}[/red]")
 
     # Start chat
-    chat_with_model(config, conversation_history)
+    after_execute = {"after_execute": False}  # Flag to indicate if we just executed a command
+    chat_with_model(config, conversation_history, after_execute_ref=after_execute)
 
 
 if __name__ == "__main__":
